@@ -1,0 +1,110 @@
+# OS-specific metadata
+*.DS_Store
+*.Thumbs.db
+
+# Miscellaneous binary and archive files
+*.a
+*.o
+*.so
+*.gch
+*.class
+*.exe
+*.dll
+*.avi
+*.mp4
+*.db3
+*.db
+*.db-shm
+*.db-wal
+*.mcap
+*.gz
+*.xz
+*.bz2
+*.z
+*.zip
+*.rar
+*.deb
+*.pth
+*.pb
+*.iml
+*.iws
+*.ipr
+*.png
+*.jpg
+*.bmp
+*.jar
+
+# Various IDE artifacts
+.idea/
+.settings/
+.vs/
+.vscode/
+.github/
+JSON/
+.classpath
+.project
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.vcproj
+*.vcproject
+*.zed/
+JSON/
+
+# Temporary and cache files
+*~
+*.swp
+*.tmp
+\#*
+.\#*
+
+# Python
+venv/
+__pycache__/
+.eggs/
+eggs/
+develop-eggs/
+.Python
+*.pyc
+*.egg-info
+*.egg
+pip-log.text
+pip-delete-this-directory.txt
+
+
+# Pre-commit hook artifacts
+pre-commit-log*.txt
+
+# Azure artifacts cache
+build-support/.artifacts_cache
+/binary_resources/*
+build-support/docker/*
+
+# Temporary files
+/.cache/
+/compile_commands.json
+
+# Bazel / Dazel build artifacts
+bazel-*
+.dazel_run
+MODULE.bazel.lock
+
+# User defined configuration
+user.bazelrc
+
+# General build artifacts
+build/
+build_*/
+install/
+cmake-build-*/
+.cmake/
+CMakeUserPresets.json
+/external/
+
+# Other files
+*.preproc
+target/
+
+

@@ -1,0 +1,11 @@
+[package]
+name = "adasisv2"
+version = "0.1.0"
+edition = "2021"
+description = "Rust library for ADASIS v2 protocol serialization and deserialization"
+license = "MIT"
+homepage = "https://github.com/kashiwado/adasisv2"
+repository = "https://github.com/kashiwado/adasisv2"
+keywords = ["automotive", "can", "infotainment", "adasis"]
+
+[dependencies]
