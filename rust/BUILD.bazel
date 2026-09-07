@@ -1,0 +1,43 @@
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_binary", "rust_test")
+load("@rules_rust//rust:rustfmt_test.bzl", "rustfmt_test")
+
+rust_binary(
+    name = "usage_example",
+    srcs = [
+        "examples/usage.rs",
+    ],
+    deps = [
+        ":adasisv2",
+    ],
+)
+
+rust_library(
+    name = "adasisv2",
+    srcs = [
+        "src/lib.rs",
+        "src/bitreader.rs",
+        "src/bitwriter.rs",
+        "src/utils.rs",
+    ],
+)
+
+rust_test(
+    name = "core_tests",
+    crate = ":adasisv2",
+)
+
+rust_test(
+    name = "parser_tests",
+    srcs = glob(["tests/**/*.rs"]),
+    deps = [
+        ":adasisv2",
+    ],
+    size = "small",
+)
+
+rustfmt_test(
+    name = "format_test",
+    targets = [
+        ":adasisv2",
+    ],
+)

@@ -1,0 +1,46 @@
+# Declare the workspace
+module(
+    name = "adasisv2",
+    version = "0.1",
+    bazel_compatibility = [
+        ">=7.6.0",
+    ],
+)
+
+# Initialize the Bazel language engine
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+
+# Register access to pre-existing online BzlMod repositories
+## Base macros for different programming and scripting languages
+
+# Rust
+bazel_dep(name = "rules_rust", version = "0.74.0")  # Rust support
+
+## Enable the Rust toolchain use in projects
+rust = use_extension("@rules_rust//:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2024",
+    versions = ["1.85.0"],
+)
+
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+use_repo(crate, "crates")
+
+crate.from_cargo(
+    name = "crates",
+    cargo_lockfile = "//rust:Cargo.lock",
+    manifests = ["//rust:Cargo.toml"],
+)
+
+# C/C++
+## Enable the LLVM toolchain to avoid requirements for system-wide installations
+bazel_dep(name = "toolchains_llvm", version = "1.8.0", dev_dependency = True)  # LLVM Clang C++ Toolchain
+
+llvm_clang = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+llvm_clang.toolchain(
+    llvm_version = "19.1.0",
+)
+use_repo(llvm_clang, "llvm_toolchain")
+
+register_toolchains("@llvm_toolchain//:all")
+
