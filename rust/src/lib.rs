@@ -79,8 +79,13 @@ impl MessageType {
 ///
 /// The message type occupies the top 3 bits of byte 0 (bits 7-5) in Big-Endian
 /// (Motorola) byte order.
-pub fn get_message_type(data: &[u8; 8]) -> MessageType {
-    MessageType::from_raw((data[0] >> 5) & 0x07)
+pub fn get_message_type(data: &[u8; 8], big_endian: bool) -> MessageType {
+    let message_type_bits = if big_endian {
+        (data[0] >> 5) & 0x07
+    } else {
+        data[0] & 0x07
+    };
+    MessageType::from_raw(message_type_bits)
 }
 
 // ============================================================================
@@ -98,10 +103,11 @@ pub struct AdasisHeader {
 
 impl AdasisHeader {
     /// Parses the common header from raw bytes.
-    pub fn from_bytes(data: &[u8; 8]) -> Self {
+    pub fn from_bytes(data: &[u8; 8], big_endian: bool) -> Self {
+        let reader = BitReader::new(data);
         Self {
-            message_type: get_message_type(data),
-            cyclic_counter: (data[0] >> 3) & 0x03,
+            message_type: get_message_type(data, big_endian),
+            cyclic_counter: reader.read_bits(3, 2, big_endian) as u8,
         }
     }
 
@@ -355,21 +361,21 @@ impl PositionMessage {
     }
 
     /// Deserializes a POSITION message from an 8-byte CAN frame (Big-Endian/Motorola).
-    pub fn from_bytes(data: &[u8; 8]) -> Self {
+    pub fn from_bytes(data: &[u8; 8], big_endian: bool) -> Self {
         let reader = BitReader::new(data);
 
-        let message_type = MessageType::from_raw(reader.read_bits_be(0, 3) as u8);
-        let cyclic_counter = reader.read_bits_be(3, 2) as u8;
-        let path_index = reader.read_bits_be(5, 6) as u8;
-        let offset = reader.read_bits_be(11, 13) as u16;
-        let position_index = reader.read_bits_be(24, 2) as u8;
-        let position_age = reader.read_bits_be(26, 9) as u16;
-        let speed = reader.read_bits_be(35, 9) as u16;
-        let relative_heading = reader.read_bits_be(44, 8) as u16;
-        let probability = reader.read_bits_be(52, 5) as u8;
-        let confidence = reader.read_bits_be(57, 3) as u8;
-        let current_lane = reader.read_bits_be(60, 3) as u8;
-        let reserved = reader.read_bits_be(63, 1) as u8;
+        let message_type = MessageType::from_raw(reader.read_bits(0, 3, big_endian) as u8);
+        let cyclic_counter = reader.read_bits(3, 2, big_endian) as u8;
+        let path_index = reader.read_bits(5, 6, big_endian) as u8;
+        let offset = reader.read_bits(11, 13, big_endian) as u16;
+        let position_index = reader.read_bits(24, 2, big_endian) as u8;
+        let position_age = reader.read_bits(26, 9, big_endian) as u16;
+        let speed = reader.read_bits(35, 9, big_endian) as u16;
+        let relative_heading = reader.read_bits(44, 8, big_endian) as u16;
+        let probability = reader.read_bits(52, 5, big_endian) as u8;
+        let confidence = reader.read_bits(57, 3, big_endian) as u8;
+        let current_lane = reader.read_bits(60, 3, big_endian) as u8;
+        let reserved = reader.read_bits(63, 1, big_endian) as u8;
 
         Self {
             header: AdasisHeader {
@@ -390,20 +396,20 @@ impl PositionMessage {
     }
 
     /// Serializes the position message into an 8-byte CAN frame (Big-Endian/Motorola).
-    pub fn to_bytes(&self) -> [u8; 8] {
+    pub fn to_bytes(&self, big_endian: bool) -> [u8; 8] {
         let mut writer = BitWriter::new();
-        writer.write_bits_be(self.header.message_type.as_raw(), 3);
-        writer.write_bits_be(self.header.cyclic_counter, 2);
-        writer.write_bits_be(self.path_index, 6);
-        writer.write_bits_be(self.offset, 13);
-        writer.write_bits_be(self.position_index, 2);
-        writer.write_bits_be(self.position_age, 9);
-        writer.write_bits_be(self.speed, 9);
-        writer.write_bits_be(self.relative_heading, 8);
-        writer.write_bits_be(self.probability, 5);
-        writer.write_bits_be(self.confidence, 3);
-        writer.write_bits_be(self.current_lane, 3);
-        writer.write_bits_be(self.reserved, 1);
+        writer.write_bits(self.header.message_type.as_raw(), 3, big_endian);
+        writer.write_bits(self.header.cyclic_counter, 2, big_endian);
+        writer.write_bits(self.path_index, 6, big_endian);
+        writer.write_bits(self.offset, 13, big_endian);
+        writer.write_bits(self.position_index, 2, big_endian);
+        writer.write_bits(self.position_age, 9, big_endian);
+        writer.write_bits(self.speed, 9, big_endian);
+        writer.write_bits(self.relative_heading, 8, big_endian);
+        writer.write_bits(self.probability, 5, big_endian);
+        writer.write_bits(self.confidence, 3, big_endian);
+        writer.write_bits(self.current_lane, 3, big_endian);
+        writer.write_bits(self.reserved, 1, big_endian);
         writer.into_bytes()
     }
 
@@ -533,29 +539,29 @@ impl SegmentMessage {
     }
 
     /// Deserialized a SegmentMessage
-    pub fn from_bytes(data: &[u8; 8]) -> Self {
+    pub fn from_bytes(data: &[u8; 8], big_endian: bool) -> Self {
         let reader = BitReader::new(data);
 
-        let message_type = MessageType::from_raw(reader.read_bits_be(0, 3) as u8);
-        let cyclic_counter = reader.read_bits_be(3, 2) as u8;
-        let retransmission = reader.read_bit_be(5);
-        let path_index = reader.read_bits_be(6, 6) as u8;
-        let offset = reader.read_bits_be(12, 13) as u16;
-        let update = reader.read_bit_be(25);
-        let frc = reader.read_bits_be(26, 3) as u8;
-        let fow = reader.read_bits_be(29, 4) as u8;
-        let eff_speed_limit = reader.read_bits_be(33, 5) as u8;
-        let eff_speed_limit_type = reader.read_bits_be(38, 3) as u8;
-        let num_lanes_driving = reader.read_bits_be(41, 3) as u8;
-        let num_lanes_opposite = reader.read_bits_be(44, 2) as u8;
-        let tunnel = reader.read_bits_be(46, 2) as u8;
-        let bridge = reader.read_bits_be(48, 2) as u8;
-        let divided_road = reader.read_bits_be(50, 2) as u8;
-        let built_up_area = reader.read_bits_be(52, 2) as u8;
-        let complex_intersection = reader.read_bits_be(54, 2) as u8;
-        let relative_probability = reader.read_bits_be(56, 5) as u8;
-        let part_of_calc_route = reader.read_bits_be(61, 2) as u8;
-        let reserved = reader.read_bits_be(63, 1) as u8;
+        let message_type = MessageType::from_raw(reader.read_bits(0, 3, big_endian) as u8);
+        let cyclic_counter = reader.read_bits(3, 2, big_endian) as u8;
+        let retransmission = reader.read_bit(5, big_endian);
+        let path_index = reader.read_bits(6, 6, big_endian) as u8;
+        let offset = reader.read_bits(12, 13, big_endian) as u16;
+        let update = reader.read_bit(25, big_endian);
+        let frc = reader.read_bits(26, 3, big_endian) as u8;
+        let fow = reader.read_bits(29, 4, big_endian) as u8;
+        let eff_speed_limit = reader.read_bits(33, 5, big_endian) as u8;
+        let eff_speed_limit_type = reader.read_bits(38, 3, big_endian) as u8;
+        let num_lanes_driving = reader.read_bits(41, 3, big_endian) as u8;
+        let num_lanes_opposite = reader.read_bits(44, 2, big_endian) as u8;
+        let tunnel = reader.read_bits(46, 2, big_endian) as u8;
+        let bridge = reader.read_bits(48, 2, big_endian) as u8;
+        let divided_road = reader.read_bits(50, 2, big_endian) as u8;
+        let built_up_area = reader.read_bits(52, 2, big_endian) as u8;
+        let complex_intersection = reader.read_bits(54, 2, big_endian) as u8;
+        let relative_probability = reader.read_bits(56, 5, big_endian) as u8;
+        let part_of_calc_route = reader.read_bits(61, 2, big_endian) as u8;
+        let reserved = reader.read_bits(63, 1, big_endian) as u8;
 
         Self {
             header: AdasisHeader {
@@ -584,28 +590,28 @@ impl SegmentMessage {
     }
 
     /// Serializes a SEGMENT message
-    pub fn to_bytes(&self) -> [u8; 8] {
+    pub fn to_bytes(&self, big_endian: bool) -> [u8; 8] {
         let mut writer = BitWriter::new();
-        writer.write_bits_be(self.header.message_type.as_raw(), 3);
-        writer.write_bits_be(self.header.cyclic_counter, 2);
-        writer.write_bit_be(self.retransmission);
-        writer.write_bits_be(self.path_index, 6);
-        writer.write_bits_be(self.offset, 13);
-        writer.write_bit_be(self.update);
-        writer.write_bits_be(self.functional_road_class as u8, 3);
-        writer.write_bits_be(self.form_of_way as u8, 4);
-        writer.write_bits_be(self.effective_speed_limit, 5);
-        writer.write_bits_be(self.effective_speed_limit_type as u8, 3);
-        writer.write_bits_be(self.number_of_lanes_driving_direction, 3);
-        writer.write_bits_be(self.number_of_lanes_opposite_direction, 2);
-        writer.write_bits_be(self.tunnel, 2);
-        writer.write_bits_be(self.bridge, 2);
-        writer.write_bits_be(self.divided_road, 2);
-        writer.write_bits_be(self.built_up_area, 2);
-        writer.write_bits_be(self.complex_intersection, 2);
-        writer.write_bits_be(self.relative_probability, 5);
-        writer.write_bits_be(self.part_of_calculated_route, 2);
-        writer.write_bits_be(self.reserved, 1);
+        writer.write_bits(self.header.message_type.as_raw(), 3, big_endian);
+        writer.write_bits(self.header.cyclic_counter, 2, big_endian);
+        writer.write_bit(self.retransmission, big_endian);
+        writer.write_bits(self.path_index, 6, big_endian);
+        writer.write_bits(self.offset, 13, big_endian);
+        writer.write_bit(self.update, big_endian);
+        writer.write_bits(self.functional_road_class as u8, 3, big_endian);
+        writer.write_bits(self.form_of_way as u8, 4, big_endian);
+        writer.write_bits(self.effective_speed_limit, 5, big_endian);
+        writer.write_bits(self.effective_speed_limit_type as u8, 3, big_endian);
+        writer.write_bits(self.number_of_lanes_driving_direction, 3, big_endian);
+        writer.write_bits(self.number_of_lanes_opposite_direction, 2, big_endian);
+        writer.write_bits(self.tunnel, 2, big_endian);
+        writer.write_bits(self.bridge, 2, big_endian);
+        writer.write_bits(self.divided_road, 2, big_endian);
+        writer.write_bits(self.built_up_area, 2, big_endian);
+        writer.write_bits(self.complex_intersection, 2, big_endian);
+        writer.write_bits(self.relative_probability, 5, big_endian);
+        writer.write_bits(self.part_of_calculated_route, 2, big_endian);
+        writer.write_bits(self.reserved, 1, big_endian);
         writer.into_bytes()
     }
 }
@@ -650,25 +656,25 @@ impl StubMessage {
         }
     }
 
-    pub fn from_bytes(data: &[u8; 8]) -> Self {
+    pub fn from_bytes(data: &[u8; 8], big_endian: bool) -> Self {
         let reader = BitReader::new(data);
-        let message_type = MessageType::from_raw(reader.read_bits_be(0, 3) as u8);
-        let cyclic_counter = reader.read_bits_be(3, 2) as u8;
-        let retransmission = reader.read_bit_be(5);
-        let path_index = reader.read_bits_be(6, 6) as u8;
-        let offset = reader.read_bits_be(12, 13) as u16;
-        let update = reader.read_bit_be(25);
-        let sub_path_index = reader.read_bits_be(26, 6) as u8;
-        let turn_angle = reader.read_bits_be(32, 8) as u8;
-        let relative_probability = reader.read_bits_be(40, 5) as u8;
-        let frc = reader.read_bits_be(45, 3) as u8;
-        let fow = reader.read_bits_be(48, 4) as u8;
-        let num_lanes_driving = reader.read_bits_be(52, 3) as u8;
-        let num_lanes_opposite = reader.read_bits_be(55, 2) as u8;
-        let complex_intersection = reader.read_bits_be(57, 2) as u8;
-        let right_of_way = reader.read_bits_be(59, 2) as u8;
-        let part_of_calc_route = reader.read_bits_be(61, 2) as u8;
-        let last_stub = reader.read_bit_be(63);
+        let message_type = MessageType::from_raw(reader.read_bits(0, 3, big_endian) as u8);
+        let cyclic_counter = reader.read_bits(3, 2, big_endian) as u8;
+        let retransmission = reader.read_bit(5, big_endian);
+        let path_index = reader.read_bits(6, 6, big_endian) as u8;
+        let offset = reader.read_bits(12, 13, big_endian) as u16;
+        let update = reader.read_bit(25, big_endian);
+        let sub_path_index = reader.read_bits(26, 6, big_endian) as u8;
+        let turn_angle = reader.read_bits(32, 8, big_endian) as u8;
+        let relative_probability = reader.read_bits(40, 5, big_endian) as u8;
+        let frc = reader.read_bits(45, 3, big_endian) as u8;
+        let fow = reader.read_bits(48, 4, big_endian) as u8;
+        let num_lanes_driving = reader.read_bits(52, 3, big_endian) as u8;
+        let num_lanes_opposite = reader.read_bits(55, 2, big_endian) as u8;
+        let complex_intersection = reader.read_bits(57, 2, big_endian) as u8;
+        let right_of_way = reader.read_bits(59, 2, big_endian) as u8;
+        let part_of_calc_route = reader.read_bits(61, 2, big_endian) as u8;
+        let last_stub = reader.read_bit(63, big_endian);
 
         Self {
             header: AdasisHeader {
@@ -693,25 +699,25 @@ impl StubMessage {
         }
     }
 
-    pub fn to_bytes(&self) -> [u8; 8] {
+    pub fn to_bytes(&self, big_endian: bool) -> [u8; 8] {
         let mut writer = BitWriter::new();
-        writer.write_bits_be(self.header.message_type.as_raw(), 3);
-        writer.write_bits_be(self.header.cyclic_counter, 2);
-        writer.write_bit_be(self.retransmission);
-        writer.write_bits_be(self.path_index, 6);
-        writer.write_bits_be(self.offset, 13);
-        writer.write_bit_be(self.update);
-        writer.write_bits_be(self.sub_path_index, 6);
-        writer.write_bits_be(self.turn_angle, 8);
-        writer.write_bits_be(self.relative_probability, 5);
-        writer.write_bits_be(self.functional_road_class as u8, 3);
-        writer.write_bits_be(self.form_of_way as u8, 4);
-        writer.write_bits_be(self.num_lanes_driving_direction, 3);
-        writer.write_bits_be(self.num_lanes_opposite_direction, 2);
-        writer.write_bits_be(self.complex_intersection, 2);
-        writer.write_bits_be(self.right_of_way, 2);
-        writer.write_bits_be(self.part_of_calculated_route, 2);
-        writer.write_bit_be(self.last_stub_at_offset);
+        writer.write_bits(self.header.message_type.as_raw(), 3, big_endian);
+        writer.write_bits(self.header.cyclic_counter, 2, big_endian);
+        writer.write_bit(self.retransmission, big_endian);
+        writer.write_bits(self.path_index, 6, big_endian);
+        writer.write_bits(self.offset, 13, big_endian);
+        writer.write_bit(self.update, big_endian);
+        writer.write_bits(self.sub_path_index, 6, big_endian);
+        writer.write_bits(self.turn_angle, 8, big_endian);
+        writer.write_bits(self.relative_probability, 5, big_endian);
+        writer.write_bits(self.functional_road_class as u8, 3, big_endian);
+        writer.write_bits(self.form_of_way as u8, 4, big_endian);
+        writer.write_bits(self.num_lanes_driving_direction, 3, big_endian);
+        writer.write_bits(self.num_lanes_opposite_direction, 2, big_endian);
+        writer.write_bits(self.complex_intersection, 2, big_endian);
+        writer.write_bits(self.right_of_way, 2, big_endian);
+        writer.write_bits(self.part_of_calculated_route, 2, big_endian);
+        writer.write_bit(self.last_stub_at_offset, big_endian);
         writer.into_bytes()
     }
 
@@ -1122,21 +1128,21 @@ pub struct ProfileShortMessage {
 }
 
 impl ProfileShortMessage {
-    pub fn from_bytes(data: &[u8; 8]) -> Self {
+    pub fn from_bytes(data: &[u8; 8], big_endian: bool) -> Self {
         let reader = BitReader::new(data);
 
-        let message_type = MessageType::from_raw(reader.read_bits_be(0, 3) as u8);
-        let cyclic_counter = reader.read_bits_be(3, 2) as u8;
-        let retransmission = reader.read_bit_be(5);
-        let path_index = reader.read_bits_be(6, 6) as u8;
-        let offset = reader.read_bits_be(12, 13) as u16;
-        let update = reader.read_bit_be(25);
-        let profile_type = reader.read_bits_be(26, 5) as u8;
-        let control_point = reader.read_bit_be(31);
-        let value0 = reader.read_bits_be(32, 10) as u16;
-        let distance1 = reader.read_bits_be(42, 10) as u16;
-        let value1 = reader.read_bits_be(52, 10) as u16;
-        let accuracy = reader.read_bits_be(62, 2) as u8;
+        let message_type = MessageType::from_raw(reader.read_bits(0, 3, big_endian) as u8);
+        let cyclic_counter = reader.read_bits(3, 2, big_endian) as u8;
+        let retransmission = reader.read_bit(5, big_endian);
+        let path_index = reader.read_bits(6, 6, big_endian) as u8;
+        let offset = reader.read_bits(12, 13, big_endian) as u16;
+        let update = reader.read_bit(25, big_endian);
+        let profile_type = reader.read_bits(26, 5, big_endian) as u8;
+        let control_point = reader.read_bit(31, big_endian);
+        let value0 = reader.read_bits(32, 10, big_endian) as u16;
+        let distance1 = reader.read_bits(42, 10, big_endian) as u16;
+        let value1 = reader.read_bits(52, 10, big_endian) as u16;
+        let accuracy = reader.read_bits(62, 2, big_endian) as u8;
 
         Self {
             header: AdasisHeader {
@@ -1156,25 +1162,28 @@ impl ProfileShortMessage {
         }
     }
 
-    pub fn to_bytes(&self) -> [u8; 8] {
+    pub fn to_bytes(&self, big_endian: bool) -> [u8; 8] {
         let mut writer = BitWriter::new();
-        writer.write_bits_be(self.header.message_type.as_raw(), 3);
-        writer.write_bits_be(self.header.cyclic_counter, 2);
-        writer.write_bit_be(self.retransmission);
-        writer.write_bits_be(self.path_index, 6);
-        writer.write_bits_be(self.offset, 13);
-        writer.write_bit_be(self.update);
-        writer.write_bits_be(self.profile_type, 5);
-        writer.write_bit_be(self.control_point);
-        writer.write_bits_be(self.value0, 10);
-        writer.write_bits_be(self.distance1, 10);
-        writer.write_bits_be(self.value1, 10);
-        writer.write_bits_be(self.accuracy, 2);
+        writer.write_bits(self.header.message_type.as_raw(), 3, big_endian);
+        writer.write_bits(self.header.cyclic_counter, 2, big_endian);
+        writer.write_bit(self.retransmission, big_endian);
+        writer.write_bits(self.path_index, 6, big_endian);
+        writer.write_bits(self.offset, 13, big_endian);
+        writer.write_bit(self.update, big_endian);
+        writer.write_bits(self.profile_type, 5, big_endian);
+        writer.write_bit(self.control_point, big_endian);
+        writer.write_bits(self.value0, 10, big_endian);
+        writer.write_bits(self.distance1, 10, big_endian);
+        writer.write_bits(self.value1, 10, big_endian);
+        writer.write_bits(self.accuracy, 2, big_endian);
         writer.into_bytes()
     }
 
     /// Interprets this PROFILE SHORT message into its typed subtype.
-    pub fn interpret(&self) -> Result<InterpretedProfileShort, DeserializeError> {
+    pub fn interpret(
+        &self,
+        _big_endian: bool,
+    ) -> Result<InterpretedProfileShort, DeserializeError> {
         let profile_type = ProfileShortType::from_raw(self.profile_type)
             .ok_or(DeserializeError::UnknownProfileType(self.profile_type))?;
 
@@ -1603,18 +1612,18 @@ pub struct ProfileLongMessage {
 }
 
 impl ProfileLongMessage {
-    pub fn from_bytes(data: &[u8; 8]) -> Self {
+    pub fn from_bytes(data: &[u8; 8], big_endian: bool) -> Self {
         let reader = BitReader::new(data);
 
-        let message_type = MessageType::from_raw(reader.read_bits_be(0, 3) as u8);
-        let cyclic_counter = reader.read_bits_be(3, 2) as u8;
-        let retransmission = reader.read_bit_be(5);
-        let path_index = reader.read_bits_be(6, 6) as u8;
-        let offset = reader.read_bits_be(12, 13) as u16;
-        let update = reader.read_bit_be(25);
-        let profile_type = reader.read_bits_be(26, 5) as u8;
-        let control_point = reader.read_bit_be(31);
-        let value = reader.read_bits_be(32, 32);
+        let message_type = MessageType::from_raw(reader.read_bits(0, 3, big_endian) as u8);
+        let cyclic_counter = reader.read_bits(3, 2, big_endian) as u8;
+        let retransmission = reader.read_bit(5, big_endian);
+        let path_index = reader.read_bits(6, 6, big_endian) as u8;
+        let offset = reader.read_bits(12, 13, big_endian) as u16;
+        let update = reader.read_bit(25, big_endian);
+        let profile_type = reader.read_bits(26, 5, big_endian) as u8;
+        let control_point = reader.read_bit(31, big_endian);
+        let value = reader.read_bits(32, 32, big_endian);
 
         Self {
             header: AdasisHeader {
@@ -1631,22 +1640,22 @@ impl ProfileLongMessage {
         }
     }
 
-    pub fn to_bytes(&self) -> [u8; 8] {
+    pub fn to_bytes(&self, big_endian: bool) -> [u8; 8] {
         let mut writer = BitWriter::new();
-        writer.write_bits_be(self.header.message_type.as_raw(), 3);
-        writer.write_bits_be(self.header.cyclic_counter, 2);
-        writer.write_bit_be(self.retransmission);
-        writer.write_bits_be(self.path_index, 6);
-        writer.write_bits_be(self.offset, 13);
-        writer.write_bit_be(self.update);
-        writer.write_bits_be(self.profile_type, 5);
-        writer.write_bit_be(self.control_point);
-        writer.write_bits_be(self.value, 32);
+        writer.write_bits(self.header.message_type.as_raw(), 3, big_endian);
+        writer.write_bits(self.header.cyclic_counter, 2, big_endian);
+        writer.write_bit(self.retransmission, big_endian);
+        writer.write_bits(self.path_index, 6, big_endian);
+        writer.write_bits(self.offset, 13, big_endian);
+        writer.write_bit(self.update, big_endian);
+        writer.write_bits(self.profile_type, 5, big_endian);
+        writer.write_bit(self.control_point, big_endian);
+        writer.write_bits(self.value, 32, big_endian);
         writer.into_bytes()
     }
 
     /// Interprets this PROFILE LONG message into its typed subtype.
-    pub fn interpret(&self) -> Result<InterpretedProfileLong, DeserializeError> {
+    pub fn interpret(&self, _big_endian: bool) -> Result<InterpretedProfileLong, DeserializeError> {
         let raw_value = self.value;
         let control_point = self.control_point;
         let profile_type = ProfileLongType::from_raw(self.profile_type)
@@ -1794,25 +1803,25 @@ pub struct MetaDataMessage {
 }
 
 impl MetaDataMessage {
-    pub fn from_bytes(data: &[u8; 8]) -> Self {
+    pub fn from_bytes(data: &[u8; 8], big_endian: bool) -> Self {
         let reader = BitReader::new(data);
 
-        let message_type = MessageType::from_raw(reader.read_bits_be(0, 3) as u8);
-        let cyclic_counter = reader.read_bits_be(3, 2) as u8;
-        let country_code = reader.read_bits_be(5, 10) as u16;
-        let region_code0 = reader.read_bits_be(15, 5) as u8;
-        let region_code1 = reader.read_bits_be(20, 5) as u8;
-        let region_code2 = reader.read_bits_be(25, 5) as u8;
-        let driving_side = reader.read_bit_be(30);
-        let speed_unit = reader.read_bit_be(31);
-        let major_protocol_version = reader.read_bits_be(32, 2) as u8;
-        let minor_protocol_version = reader.read_bits_be(34, 4) as u8;
-        let minor_protocol_sub_version = reader.read_bits_be(38, 3) as u8;
-        let hardware_version = reader.read_bits_be(41, 9) as u16;
-        let map_provider = reader.read_bits_be(50, 3) as u8;
-        let map_version_year = reader.read_bits_be(53, 6) as u8;
-        let map_version_quarter = reader.read_bits_be(59, 2) as u8;
-        let reserved = reader.read_bits_be(61, 3) as u8;
+        let message_type = MessageType::from_raw(reader.read_bits(0, 3, big_endian) as u8);
+        let cyclic_counter = reader.read_bits(3, 2, big_endian) as u8;
+        let country_code = reader.read_bits(5, 10, big_endian) as u16;
+        let region_code0 = reader.read_bits(15, 5, big_endian) as u8;
+        let region_code1 = reader.read_bits(20, 5, big_endian) as u8;
+        let region_code2 = reader.read_bits(25, 5, big_endian) as u8;
+        let driving_side = reader.read_bit(30, big_endian);
+        let speed_unit = reader.read_bit(31, big_endian);
+        let major_protocol_version = reader.read_bits(32, 2, big_endian) as u8;
+        let minor_protocol_version = reader.read_bits(34, 4, big_endian) as u8;
+        let minor_protocol_sub_version = reader.read_bits(38, 3, big_endian) as u8;
+        let hardware_version = reader.read_bits(41, 9, big_endian) as u16;
+        let map_provider = reader.read_bits(50, 3, big_endian) as u8;
+        let map_version_year = reader.read_bits(53, 6, big_endian) as u8;
+        let map_version_quarter = reader.read_bits(59, 2, big_endian) as u8;
+        let reserved = reader.read_bits(61, 3, big_endian) as u8;
 
         Self {
             header: AdasisHeader {
@@ -1836,24 +1845,24 @@ impl MetaDataMessage {
         }
     }
 
-    pub fn to_bytes(&self) -> [u8; 8] {
+    pub fn to_bytes(&self, big_endian: bool) -> [u8; 8] {
         let mut writer = BitWriter::new();
-        writer.write_bits_be(self.header.message_type.as_raw(), 3);
-        writer.write_bits_be(self.header.cyclic_counter, 2);
-        writer.write_bits_be(self.country_code, 10);
-        writer.write_bits_be(self.region_code0, 5);
-        writer.write_bits_be(self.region_code1, 5);
-        writer.write_bits_be(self.region_code2, 5);
-        writer.write_bit_be(self.driving_side != 0);
-        writer.write_bit_be(self.speed_unit != 0);
-        writer.write_bits_be(self.major_protocol_version, 2);
-        writer.write_bits_be(self.minor_protocol_version, 4);
-        writer.write_bits_be(self.minor_protocol_sub_version, 3);
-        writer.write_bits_be(self.hardware_version, 9);
-        writer.write_bits_be(self.map_provider, 3);
-        writer.write_bits_be(self.map_version_year, 6);
-        writer.write_bits_be(self.map_version_quarter, 2);
-        writer.write_bits_be(self.reserved, 3);
+        writer.write_bits(self.header.message_type.as_raw(), 3, big_endian);
+        writer.write_bits(self.header.cyclic_counter, 2, big_endian);
+        writer.write_bits(self.country_code, 10, big_endian);
+        writer.write_bits(self.region_code0, 5, big_endian);
+        writer.write_bits(self.region_code1, 5, big_endian);
+        writer.write_bits(self.region_code2, 5, big_endian);
+        writer.write_bit(self.driving_side != 0, big_endian);
+        writer.write_bit(self.speed_unit != 0, big_endian);
+        writer.write_bits(self.major_protocol_version, 2, big_endian);
+        writer.write_bits(self.minor_protocol_version, 4, big_endian);
+        writer.write_bits(self.minor_protocol_sub_version, 3, big_endian);
+        writer.write_bits(self.hardware_version, 9, big_endian);
+        writer.write_bits(self.map_provider, 3, big_endian);
+        writer.write_bits(self.map_version_year, 6, big_endian);
+        writer.write_bits(self.map_version_quarter, 2, big_endian);
+        writer.write_bits(self.reserved, 3, big_endian);
         writer.into_bytes()
     }
 
@@ -1904,38 +1913,44 @@ pub enum DeserializeError {
 }
 
 /// Deserializes an 8-byte CAN frame into an interpreted ADASIS v2 message.
-pub fn deserialize(data: &[u8; 8]) -> Result<Message, DeserializeError> {
-    let msg_type = get_message_type(data);
+pub fn deserialize(data: &[u8; 8], big_endian: bool) -> Result<Message, DeserializeError> {
+    let msg_type = get_message_type(data, big_endian);
 
     match msg_type {
-        MessageType::Position => Ok(Message::Position(PositionMessage::from_bytes(data))),
-        MessageType::Segment => Ok(Message::Segment(SegmentMessage::from_bytes(data))),
-        MessageType::Stub => Ok(Message::Stub(StubMessage::from_bytes(data))),
+        MessageType::Position => Ok(Message::Position(PositionMessage::from_bytes(
+            data, big_endian,
+        ))),
+        MessageType::Segment => Ok(Message::Segment(SegmentMessage::from_bytes(
+            data, big_endian,
+        ))),
+        MessageType::Stub => Ok(Message::Stub(StubMessage::from_bytes(data, big_endian))),
         MessageType::ProfileShort => {
-            let raw = ProfileShortMessage::from_bytes(data);
-            let interpreted = raw.interpret()?;
+            let raw = ProfileShortMessage::from_bytes(data, big_endian);
+            let interpreted = raw.interpret(big_endian)?;
             Ok(Message::ProfileShort(interpreted))
         }
         MessageType::ProfileLong => {
-            let raw = ProfileLongMessage::from_bytes(data);
-            let interpreted = raw.interpret()?;
+            let raw = ProfileLongMessage::from_bytes(data, big_endian);
+            let interpreted = raw.interpret(big_endian)?;
             Ok(Message::ProfileLong(interpreted))
         }
-        MessageType::MetaData => Ok(Message::MetaData(MetaDataMessage::from_bytes(data))),
+        MessageType::MetaData => Ok(Message::MetaData(MetaDataMessage::from_bytes(
+            data, big_endian,
+        ))),
         MessageType::SystemSpecific => Ok(Message::SystemSpecific(data[1])),
         MessageType::Reserved => Ok(Message::Reserved(0)),
     }
 }
 
 /// Serializes an interpreted ADASIS v2 message into an 8-byte CAN frame.
-pub fn serialize(msg: &Message) -> [u8; 8] {
+pub fn serialize(msg: &Message, big_endian: bool) -> [u8; 8] {
     match msg {
-        Message::Position(m) => m.to_bytes(),
-        Message::Segment(m) => m.to_bytes(),
-        Message::Stub(m) => m.to_bytes(),
-        Message::ProfileShort(interpreted) => serialize_profile_short(interpreted),
-        Message::ProfileLong(interpreted) => serialize_profile_long(interpreted),
-        Message::MetaData(m) => m.to_bytes(),
+        Message::Position(m) => m.to_bytes(big_endian),
+        Message::Segment(m) => m.to_bytes(big_endian),
+        Message::Stub(m) => m.to_bytes(big_endian),
+        Message::ProfileShort(interpreted) => serialize_profile_short(interpreted, big_endian),
+        Message::ProfileLong(interpreted) => serialize_profile_long(interpreted, big_endian),
+        Message::MetaData(m) => m.to_bytes(big_endian),
         Message::SystemSpecific(v) => {
             let mut result = [0u8; 8];
             result[0] = 0x00;
@@ -1946,7 +1961,7 @@ pub fn serialize(msg: &Message) -> [u8; 8] {
     }
 }
 
-fn serialize_profile_short(interpreted: &InterpretedProfileShort) -> [u8; 8] {
+fn serialize_profile_short(interpreted: &InterpretedProfileShort, big_endian: bool) -> [u8; 8] {
     let (profile_type, value0, distance1, value1, accuracy, control_point) = match interpreted {
         InterpretedProfileShort::Curvature(c) => (
             1u8,
@@ -2039,10 +2054,10 @@ fn serialize_profile_short(interpreted: &InterpretedProfileShort) -> [u8; 8] {
         accuracy,
     };
 
-    msg.to_bytes()
+    msg.to_bytes(big_endian)
 }
 
-fn serialize_profile_long(interpreted: &InterpretedProfileLong) -> [u8; 8] {
+fn serialize_profile_long(interpreted: &InterpretedProfileLong, big_endian: bool) -> [u8; 8] {
     let (profile_type, raw_value, control_point) = match interpreted {
         InterpretedProfileLong::Longitude {
             raw_value,
@@ -2115,7 +2130,7 @@ fn serialize_profile_long(interpreted: &InterpretedProfileLong) -> [u8; 8] {
         value: raw_value,
     };
 
-    msg.to_bytes()
+    msg.to_bytes(big_endian)
 }
 
 #[cfg(test)]

@@ -2,20 +2,13 @@
 
 use adasisv2::*;
 
-/*#[test]
+#[test]
 fn test_parse_position() {
-    let data: [u8; 8] = [0b00110001, 0b00000000, 0b01010010, 0b00111111, 0b11000101 ,0b10011111, 0b11011101, 0b00101110];  
-//    let data0: u64 = 0x20528835fe2e59fd;
-//    let data0: [u8; 8] = [0x20, 0x52, 0x88, 0x35, 0xfe, 0x2e, 0x59, 0xfd];
-    //let data1 = data0.swap_bytes();
-    //let data = data1.to_ne_bytes();
-    let t: adasisv2::MessageType = adasisv2::get_message_type(&data);
-    for elem in &data {
-        print!("{:x?}", elem);
-    }
+    let data: [u8; 8] = [0b00110001, 0b00000000, 0b01010010, 0b00111111, 0b11000101 ,0b10011111, 0b11011101, 0b00101110];
     println!("");
+    let t: adasisv2::MessageType = adasisv2::get_message_type(&data, true);
     assert_eq!(t, adasisv2::MessageType::Position);
-    let m: adasisv2::PositionMessage = adasisv2::PositionMessage::from_bytes(&data);
+    let m: adasisv2::PositionMessage = adasisv2::PositionMessage::from_bytes(&data, true);
     assert_eq!(m.header.message_type, MessageType::Position);
     assert_eq!(m.header.cyclic_counter, 2, "Cyclic counter");
     assert_eq!(m.path_index, 8, "path index");
@@ -27,33 +20,17 @@ fn test_parse_position() {
     assert_eq!(m.probability, 26, "probability");
     assert_eq!(m.confidence, 2, "confidence");
     assert_eq!(m.current_lane, 7, "current lane");
-
-//                            01 89 03 90 41 03 e0 41
-    let data2: [u8; 8] = [0x01, 0x89, 0x03, 0x90, 0x41, 0x03, 0xe0, 0x41];
-    //let data2: [u8; 8] = [0x41, 0xe0, 0x03, 0x41, 0x90, 0x03, 0x89, 0x01];
-    assert_eq!(t, adasisv2::MessageType::Position);
-    let m2: adasisv2::PositionMessage = adasisv2::PositionMessage::from_bytes(&data2);
-    assert_eq!(m2.header.message_type, MessageType::Position);
-    assert_eq!(m2.header.cyclic_counter, 0, "Cyclic counter");
-    assert_eq!(m2.path_index, 8, "path index");
-    assert_eq!(m2.offset, 113, "path offset");
-    assert_eq!(m2.position_index, 0, "position index");
-    assert_eq!(m2.position_age, 100, "position age");
-    assert_eq!(m2.speed, 104, "speed");
-    assert_eq!(m2.relative_heading, 0, "heading");
-    assert_eq!(m2.probability, 30, "probability");
-    assert_eq!(m2.confidence, 0, "confidence");
-    assert_eq!(m2.current_lane, 4, "current lane");
-
-}*/
-
+}
 
 /// Tests that get_message_type correctly extracts the message type from byte 0.
 #[test]
 fn test_get_message_type() {
     for msg_type in 0u8..=7u8 {
         let data = [msg_type << 5, 0, 0, 0, 0, 0, 0, 0];
-        assert_eq!(get_message_type(&data), MessageType::from_raw(msg_type));
+        assert_eq!(
+            get_message_type(&data, true),
+            MessageType::from_raw(msg_type)
+        );
     }
 }
 
@@ -61,17 +38,17 @@ fn test_get_message_type() {
 #[test]
 fn test_position_roundtrip() {
     let data: [u8; 8] = [0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    let msg = PositionMessage::from_bytes(&data);
+    let msg = PositionMessage::from_bytes(&data, true);
     assert_eq!(msg.header.message_type, MessageType::Position);
     assert_eq!(msg.header.cyclic_counter, 0);
-    let serialized = msg.to_bytes();
+    let serialized = msg.to_bytes(true);
     assert_eq!(serialized, data);
 }
 
 /// Tests POSITION message with actual field values.
 #[test]
 fn test_position_fields() {
-    let mut msg = PositionMessage::from_bytes(&[0u8; 8]);
+    let mut msg = PositionMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::Position;
     msg.header.cyclic_counter = 3;
     msg.path_index = 42;
@@ -85,8 +62,8 @@ fn test_position_fields() {
     msg.current_lane = 3;
     msg.reserved = 1;
 
-    let serialized = msg.to_bytes();
-    let deserialized = PositionMessage::from_bytes(&serialized);
+    let serialized = msg.to_bytes(true);
+    let deserialized = PositionMessage::from_bytes(&serialized, true);
 
     assert_eq!(deserialized.header.message_type, MessageType::Position);
     assert_eq!(deserialized.header.cyclic_counter, 3);
@@ -105,7 +82,7 @@ fn test_position_fields() {
 /// Tests speed interpretation.
 #[test]
 fn test_position_speed_interpretation() {
-    let mut msg = PositionMessage::from_bytes(&[0u8; 8]);
+    let mut msg = PositionMessage::from_bytes(&[0u8; 8], true);
     msg.speed = 64;
     assert_eq!(msg.speed_mps(), Some(0.0));
 
@@ -122,7 +99,7 @@ fn test_position_speed_interpretation() {
 /// Tests SEGMENT message roundtrip.
 #[test]
 fn test_segment_roundtrip() {
-    let mut msg = SegmentMessage::from_bytes(&[0u8; 8]);
+    let mut msg = SegmentMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::Segment;
     msg.header.cyclic_counter = 1;
     msg.retransmission = true;
@@ -144,8 +121,8 @@ fn test_segment_roundtrip() {
     msg.part_of_calculated_route = 1;
     msg.reserved = 1;
 
-    let serialized = msg.to_bytes();
-    let deserialized = SegmentMessage::from_bytes(&serialized);
+    let serialized = msg.to_bytes(true);
+    let deserialized = SegmentMessage::from_bytes(&serialized, true);
 
     assert_eq!(deserialized.header.message_type, MessageType::Segment);
     assert_eq!(deserialized.header.cyclic_counter, 1);
@@ -178,7 +155,7 @@ fn test_segment_roundtrip() {
 /// Tests STUB message roundtrip.
 #[test]
 fn test_stub_roundtrip() {
-    let mut msg = StubMessage::from_bytes(&[0u8; 8]);
+    let mut msg = StubMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::Stub;
     msg.header.cyclic_counter = 2;
     msg.retransmission = false;
@@ -197,8 +174,8 @@ fn test_stub_roundtrip() {
     msg.part_of_calculated_route = 1;
     msg.last_stub_at_offset = true;
 
-    let serialized = msg.to_bytes();
-    let deserialized = StubMessage::from_bytes(&serialized);
+    let serialized = msg.to_bytes(true);
+    let deserialized = StubMessage::from_bytes(&serialized, true);
 
     assert_eq!(deserialized.header.message_type, MessageType::Stub);
     assert_eq!(deserialized.header.cyclic_counter, 2);
@@ -225,7 +202,7 @@ fn test_stub_roundtrip() {
 /// Tests STUB turn angle interpretation.
 #[test]
 fn test_stub_turn_angle() {
-    let mut msg = StubMessage::from_bytes(&[0u8; 8]);
+    let mut msg = StubMessage::from_bytes(&[0u8; 8], true);
     msg.turn_angle = 255;
     assert_eq!(msg.turn_angle_degrees(), None);
 
@@ -237,7 +214,7 @@ fn test_stub_turn_angle() {
 /// Tests PROFILE SHORT Curvature roundtrip with interpretation.
 #[test]
 fn test_profile_short_curvature_roundtrip() {
-    let mut msg = ProfileShortMessage::from_bytes(&[0u8; 8]);
+    let mut msg = ProfileShortMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::ProfileShort;
     msg.profile_type = 1;
     msg.path_index = 2;
@@ -249,8 +226,8 @@ fn test_profile_short_curvature_roundtrip() {
     msg.value1 = 511;
     msg.accuracy = 2;
 
-    let serialized = msg.to_bytes();
-    let deserialized = ProfileShortMessage::from_bytes(&serialized);
+    let serialized = msg.to_bytes(true);
+    let deserialized = ProfileShortMessage::from_bytes(&serialized, true);
 
     assert_eq!(deserialized.profile_type, 1);
     assert_eq!(deserialized.value0, 512);
@@ -259,7 +236,7 @@ fn test_profile_short_curvature_roundtrip() {
     assert_eq!(deserialized.accuracy, 2);
     assert_eq!(deserialized.control_point, true);
 
-    let interpreted = deserialized.interpret().unwrap();
+    let interpreted = deserialized.interpret(true).unwrap();
     match interpreted {
         InterpretedProfileShort::Curvature(c) => {
             assert_eq!(c.raw_value0, Some(512));
@@ -293,10 +270,10 @@ fn test_profile_short_all_subtypes() {
             accuracy: 0,
         };
 
-        let serialized = msg.to_bytes();
-        let deserialized = ProfileShortMessage::from_bytes(&serialized);
+        let serialized = msg.to_bytes(true);
+        let deserialized = ProfileShortMessage::from_bytes(&serialized, true);
         assert_eq!(deserialized.profile_type, profile_type);
-        let interpreted = deserialized.interpret().unwrap();
+        let interpreted = deserialized.interpret(true).unwrap();
         assert!(
             is_expected(&interpreted),
             "Failed for profile type {}",
@@ -340,13 +317,13 @@ fn test_profile_long_longitude_roundtrip() {
         value: 2000000000,
     };
 
-    let serialized = msg.to_bytes();
-    let deserialized = ProfileLongMessage::from_bytes(&serialized);
+    let serialized = msg.to_bytes(true);
+    let deserialized = ProfileLongMessage::from_bytes(&serialized, true);
 
     assert_eq!(deserialized.profile_type, 1);
     assert_eq!(deserialized.value, 2000000000);
 
-    let interpreted = deserialized.interpret().unwrap();
+    let interpreted = deserialized.interpret(true).unwrap();
     match interpreted {
         InterpretedProfileLong::Longitude {
             value,
@@ -384,10 +361,10 @@ fn test_profile_long_all_subtypes() {
             value,
         };
 
-        let serialized = msg.to_bytes();
-        let deserialized = ProfileLongMessage::from_bytes(&serialized);
+        let serialized = msg.to_bytes(true);
+        let deserialized = ProfileLongMessage::from_bytes(&serialized, true);
         assert_eq!(deserialized.profile_type, profile_type);
-        let interpreted = deserialized.interpret().unwrap();
+        let interpreted = deserialized.interpret(true).unwrap();
         assert!(
             is_expected(&interpreted),
             "Failed for profile type {}",
@@ -447,9 +424,9 @@ fn test_profile_long_invalid_value() {
         value: 0xFFFFFFFF,
     };
 
-    let serialized = msg.to_bytes();
-    let deserialized = ProfileLongMessage::from_bytes(&serialized);
-    let interpreted = deserialized.interpret().unwrap();
+    let serialized = msg.to_bytes(true);
+    let deserialized = ProfileLongMessage::from_bytes(&serialized, true);
+    let interpreted = deserialized.interpret(true).unwrap();
     match interpreted {
         InterpretedProfileLong::Longitude { value, .. } => {
             assert_eq!(value, None);
@@ -461,7 +438,7 @@ fn test_profile_long_invalid_value() {
 /// Tests META-DATA message roundtrip.
 #[test]
 fn test_metadata_roundtrip() {
-    let mut msg = MetaDataMessage::from_bytes(&[0u8; 8]);
+    let mut msg = MetaDataMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::MetaData;
     msg.header.cyclic_counter = 2;
     msg.country_code = 840;
@@ -479,8 +456,8 @@ fn test_metadata_roundtrip() {
     msg.map_version_quarter = 2;
     msg.reserved = 0;
 
-    let serialized = msg.to_bytes();
-    let deserialized = MetaDataMessage::from_bytes(&serialized);
+    let serialized = msg.to_bytes(true);
+    let deserialized = MetaDataMessage::from_bytes(&serialized, true);
 
     assert_eq!(deserialized.header.message_type, MessageType::MetaData);
     assert_eq!(deserialized.header.cyclic_counter, 2);
@@ -510,15 +487,15 @@ fn test_metadata_roundtrip() {
 /// Tests the high-level deserialize function for POSITION.
 #[test]
 fn test_deserialize_position() {
-    let mut msg = PositionMessage::from_bytes(&[0u8; 8]);
+    let mut msg = PositionMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::Position;
     msg.header.cyclic_counter = 1;
     msg.path_index = 42;
     msg.offset = 5000;
     msg.speed = 100;
 
-    let serialized = msg.to_bytes();
-    let deserialized = deserialize(&serialized).unwrap();
+    let serialized = msg.to_bytes(true);
+    let deserialized = deserialize(&serialized, true).unwrap();
 
     match deserialized {
         Message::Position(p) => {
@@ -534,7 +511,7 @@ fn test_deserialize_position() {
 /// Tests the high-level deserialize function for SEGMENT.
 #[test]
 fn test_deserialize_segment() {
-    let mut msg = SegmentMessage::from_bytes(&[0u8; 8]);
+    let mut msg = SegmentMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::Segment;
     msg.retransmission = true;
     msg.path_index = 3;
@@ -543,8 +520,8 @@ fn test_deserialize_segment() {
     msg.form_of_way = FormOfWay::SingleCarriageway;
     msg.effective_speed_limit = 20;
 
-    let serialized = msg.to_bytes();
-    let deserialized = deserialize(&serialized).unwrap();
+    let serialized = msg.to_bytes(true);
+    let deserialized = deserialize(&serialized, true).unwrap();
 
     match deserialized {
         Message::Segment(s) => {
@@ -562,7 +539,7 @@ fn test_deserialize_segment() {
 /// Tests the high-level deserialize function for STUB.
 #[test]
 fn test_deserialize_stub() {
-    let mut msg = StubMessage::from_bytes(&[0u8; 8]);
+    let mut msg = StubMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::Stub;
     msg.retransmission = false;
     msg.path_index = 1;
@@ -570,8 +547,8 @@ fn test_deserialize_stub() {
     msg.sub_path_index = 5;
     msg.turn_angle = 64;
 
-    let serialized = msg.to_bytes();
-    let deserialized = deserialize(&serialized).unwrap();
+    let serialized = msg.to_bytes(true);
+    let deserialized = deserialize(&serialized, true).unwrap();
 
     match deserialized {
         Message::Stub(s) => {
@@ -588,15 +565,15 @@ fn test_deserialize_stub() {
 /// Tests the high-level deserialize function for PROFILE_SHORT.
 #[test]
 fn test_deserialize_profile_short() {
-    let mut msg = ProfileShortMessage::from_bytes(&[0u8; 8]);
+    let mut msg = ProfileShortMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::ProfileShort;
     msg.profile_type = 3;
     msg.path_index = 2;
     msg.offset = 500;
     msg.value0 = 300;
 
-    let serialized = msg.to_bytes();
-    let deserialized = deserialize(&serialized).unwrap();
+    let serialized = msg.to_bytes(true);
+    let deserialized = deserialize(&serialized, true).unwrap();
 
     match deserialized {
         Message::ProfileShort(InterpretedProfileShort::SlopeStep(s)) => {
@@ -609,15 +586,15 @@ fn test_deserialize_profile_short() {
 /// Tests the high-level deserialize function for PROFILE_LONG.
 #[test]
 fn test_deserialize_profile_long() {
-    let mut msg = ProfileLongMessage::from_bytes(&[0u8; 8]);
+    let mut msg = ProfileLongMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::ProfileLong;
     msg.profile_type = 3;
     msg.path_index = 1;
     msg.offset = 300;
     msg.value = 100000;
 
-    let serialized = msg.to_bytes();
-    let deserialized = deserialize(&serialized).unwrap();
+    let serialized = msg.to_bytes(true);
+    let deserialized = deserialize(&serialized, true).unwrap();
 
     match deserialized {
         Message::ProfileLong(InterpretedProfileLong::Altitude {
@@ -633,12 +610,12 @@ fn test_deserialize_profile_long() {
 /// Tests the high-level deserialize function for META-DATA.
 #[test]
 fn test_deserialize_metadata() {
-    let mut msg = MetaDataMessage::from_bytes(&[0u8; 8]);
+    let mut msg = MetaDataMessage::from_bytes(&[0u8; 8], true);
     msg.header.message_type = MessageType::MetaData;
     msg.country_code = 276;
 
-    let serialized = msg.to_bytes();
-    let deserialized = deserialize(&serialized).unwrap();
+    let serialized = msg.to_bytes(true);
+    let deserialized = deserialize(&serialized, true).unwrap();
 
     match deserialized {
         Message::MetaData(m) => {
@@ -668,11 +645,11 @@ fn test_serialize_interpreted_profile_short() {
         accuracy: 0,
     };
 
-    let raw = msg.to_bytes();
-    let deserialized = ProfileShortMessage::from_bytes(&raw);
-    let interpreted = deserialized.interpret().unwrap();
+    let raw = msg.to_bytes(true);
+    let deserialized = ProfileShortMessage::from_bytes(&raw, true);
+    let interpreted = deserialized.interpret(true).unwrap();
 
-    let serialized = serialize(&Message::ProfileShort(interpreted));
+    let serialized = serialize(&Message::ProfileShort(interpreted), true);
     assert_eq!(serialized, raw);
 }
 
@@ -693,11 +670,11 @@ fn test_serialize_interpreted_profile_long() {
         value: 12345,
     };
 
-    let raw = msg.to_bytes();
-    let deserialized = ProfileLongMessage::from_bytes(&raw);
-    let interpreted = deserialized.interpret().unwrap();
+    let raw = msg.to_bytes(true);
+    let deserialized = ProfileLongMessage::from_bytes(&raw, true);
+    let interpreted = deserialized.interpret(true).unwrap();
 
-    let serialized = serialize(&Message::ProfileLong(interpreted));
+    let serialized = serialize(&Message::ProfileLong(interpreted), true);
     assert_eq!(serialized, raw);
 }
 
@@ -748,7 +725,7 @@ fn test_curvature_na_interpretation() {
         accuracy: 0,
     };
 
-    let interpreted = msg.interpret().unwrap();
+    let interpreted = msg.interpret(true).unwrap();
     match interpreted {
         InterpretedProfileShort::Curvature(c) => {
             assert_eq!(c.raw_value0, None);
@@ -783,7 +760,7 @@ fn test_slope_step_interpretation() {
         accuracy: 1,
     };
 
-    let interpreted = msg.interpret().unwrap();
+    let interpreted = msg.interpret(true).unwrap();
     match interpreted {
         InterpretedProfileShort::SlopeStep(s) => {
             assert!((s.slope0.unwrap() - 48.9).abs() < 1e-4);
@@ -818,7 +795,7 @@ fn test_road_accessibility_interpretation() {
         accuracy: 0,
     };
 
-    let interpreted = msg.interpret().unwrap();
+    let interpreted = msg.interpret(true).unwrap();
     match interpreted {
         InterpretedProfileShort::RoadAccessibility(r) => {
             assert!(r.accessibility.as_ref().unwrap().passenger_cars);
@@ -852,7 +829,7 @@ fn test_road_condition_interpretation() {
         accuracy: 0,
     };
 
-    let interpreted = msg.interpret().unwrap();
+    let interpreted = msg.interpret(true).unwrap();
     match interpreted {
         InterpretedProfileShort::RoadCondition(r) => {
             assert_eq!(r.condition, Some(RoadCondition::Wet));
@@ -883,7 +860,7 @@ fn test_variable_speed_sign_interpretation() {
         accuracy: 0,
     };
 
-    let interpreted = msg.interpret().unwrap();
+    let interpreted = msg.interpret(true).unwrap();
     match interpreted {
         InterpretedProfileShort::VariableSpeedSign(v) => {
             assert_eq!(v.sign, None); // N/A
@@ -914,7 +891,7 @@ fn test_heading_change_interpretation() {
         accuracy: 0,
     };
 
-    let interpreted = msg.interpret().unwrap();
+    let interpreted = msg.interpret(true).unwrap();
     match interpreted {
         InterpretedProfileShort::HeadingChange(h) => {
             let expected0 = 256.0 * 360.0 / 511.0;
@@ -947,7 +924,7 @@ fn test_average_speed_interpretation() {
         accuracy: 0,
     };
 
-    let interpreted = msg.interpret().unwrap();
+    let interpreted = msg.interpret(true).unwrap();
     match interpreted {
         InterpretedProfileShort::AverageSpeed(a) => {
             assert!((a.speed0.unwrap() - 50.0).abs() < 1e-4);
@@ -955,4 +932,91 @@ fn test_average_speed_interpretation() {
         }
         _ => panic!("Expected AverageSpeed profile"),
     }
+}
+
+/// Tests that a message serialized in LE can be deserialized in LE.
+#[test]
+fn test_le_roundtrip_position() {
+    let msg = PositionMessage {
+        header: AdasisHeader {
+            message_type: MessageType::Position,
+            cyclic_counter: 3,
+        },
+        path_index: 42,
+        offset: 1000,
+        position_index: 1,
+        position_age: 300,
+        speed: 100,
+        relative_heading: 128,
+        probability: 15,
+        confidence: 5,
+        current_lane: 3,
+        reserved: 0,
+    };
+
+    let bytes_be = msg.to_bytes(true);
+    let bytes_le = msg.to_bytes(false);
+
+    // LE and BE should produce different byte sequences (for most fields)
+    assert_ne!(bytes_be, bytes_le);
+
+    // Roundtrip with LE
+    let deserialized_le = PositionMessage::from_bytes(&bytes_le, false);
+    assert_eq!(deserialized_le.header.message_type, MessageType::Position);
+    assert_eq!(deserialized_le.header.cyclic_counter, 3);
+    assert_eq!(deserialized_le.path_index, 42);
+    assert_eq!(deserialized_le.offset, 1000);
+    assert_eq!(deserialized_le.position_age, 300);
+    assert_eq!(deserialized_le.speed, 100);
+    assert_eq!(deserialized_le.relative_heading, 128);
+    assert_eq!(deserialized_le.probability, 15);
+    assert_eq!(deserialized_le.confidence, 5);
+    assert_eq!(deserialized_le.current_lane, 3);
+
+    // Roundtrip with BE
+    let deserialized_be = PositionMessage::from_bytes(&bytes_be, true);
+    assert_eq!(deserialized_be.path_index, 42);
+    assert_eq!(deserialized_be.offset, 1000);
+
+    // Re-serialize LE should match original LE
+    let res_be = deserialized_le.to_bytes(false);
+    assert_eq!(res_be, bytes_le);
+}
+
+/// Tests full deserialize/serialize roundtrip with little-endian.
+#[test]
+fn test_le_full_roundtrip() {
+    let msg = PositionMessage {
+        header: AdasisHeader {
+            message_type: MessageType::Position,
+            cyclic_counter: 1,
+        },
+        path_index: 10,
+        offset: 500,
+        position_index: 0,
+        position_age: 100,
+        speed: 80,
+        relative_heading: 64,
+        probability: 10,
+        confidence: 3,
+        current_lane: 1,
+        reserved: 0,
+    };
+
+    let bytes = msg.to_bytes(false);
+    let msg_type = get_message_type(&bytes, false);
+    assert_eq!(msg_type, MessageType::Position);
+
+    let deserialized = deserialize(&bytes, false).unwrap();
+    let reserialized = serialize(&deserialized, false);
+    assert_eq!(bytes, reserialized);
+}
+
+/// Tests that get_message_type works with LE byte order.
+#[test]
+fn test_get_message_type_le() {
+    // In LE, message type is in the low 3 bits of byte 0
+    let data = [0x05, 0, 0, 0, 0, 0, 0, 0]; // 0x05 = 0b00000101, low 3 bits = 5 = ProfileLong
+    let msg_type = get_message_type(&data, false);
+    assert_eq!(msg_type, MessageType::ProfileLong);
 }

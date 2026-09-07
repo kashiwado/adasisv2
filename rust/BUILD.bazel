@@ -22,7 +22,12 @@ rust_library(
 )
 
 rust_test(
-    name = "adasisv2_unittests",
+    name = "core_tests",
+    crate = ":adasisv2",
+)
+
+rust_test(
+    name = "parser_tests",
     srcs = glob(["tests/**/*.rs"]),
     deps = [
         ":adasisv2",
