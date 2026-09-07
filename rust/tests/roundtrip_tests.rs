@@ -2,6 +2,52 @@
 
 use adasisv2::*;
 
+/*#[test]
+fn test_parse_position() {
+    let data: [u8; 8] = [0b00110001, 0b00000000, 0b01010010, 0b00111111, 0b11000101 ,0b10011111, 0b11011101, 0b00101110];  
+//    let data0: u64 = 0x20528835fe2e59fd;
+//    let data0: [u8; 8] = [0x20, 0x52, 0x88, 0x35, 0xfe, 0x2e, 0x59, 0xfd];
+    //let data1 = data0.swap_bytes();
+    //let data = data1.to_ne_bytes();
+    let t: adasisv2::MessageType = adasisv2::get_message_type(&data);
+    for elem in &data {
+        print!("{:x?}", elem);
+    }
+    println!("");
+    assert_eq!(t, adasisv2::MessageType::Position);
+    let m: adasisv2::PositionMessage = adasisv2::PositionMessage::from_bytes(&data);
+    assert_eq!(m.header.message_type, MessageType::Position);
+    assert_eq!(m.header.cyclic_counter, 2, "Cyclic counter");
+    assert_eq!(m.path_index, 8, "path index");
+    assert_eq!(m.offset, 82, "path offset");
+    assert_eq!(m.position_index, 0, "position index");
+    assert_eq!(m.position_age, 510, "position age");
+    assert_eq!(m.speed, 89, "speed");
+    assert_eq!(m.relative_heading, 253, "heading");
+    assert_eq!(m.probability, 26, "probability");
+    assert_eq!(m.confidence, 2, "confidence");
+    assert_eq!(m.current_lane, 7, "current lane");
+
+//                            01 89 03 90 41 03 e0 41
+    let data2: [u8; 8] = [0x01, 0x89, 0x03, 0x90, 0x41, 0x03, 0xe0, 0x41];
+    //let data2: [u8; 8] = [0x41, 0xe0, 0x03, 0x41, 0x90, 0x03, 0x89, 0x01];
+    assert_eq!(t, adasisv2::MessageType::Position);
+    let m2: adasisv2::PositionMessage = adasisv2::PositionMessage::from_bytes(&data2);
+    assert_eq!(m2.header.message_type, MessageType::Position);
+    assert_eq!(m2.header.cyclic_counter, 0, "Cyclic counter");
+    assert_eq!(m2.path_index, 8, "path index");
+    assert_eq!(m2.offset, 113, "path offset");
+    assert_eq!(m2.position_index, 0, "position index");
+    assert_eq!(m2.position_age, 100, "position age");
+    assert_eq!(m2.speed, 104, "speed");
+    assert_eq!(m2.relative_heading, 0, "heading");
+    assert_eq!(m2.probability, 30, "probability");
+    assert_eq!(m2.confidence, 0, "confidence");
+    assert_eq!(m2.current_lane, 4, "current lane");
+
+}*/
+
+
 /// Tests that get_message_type correctly extracts the message type from byte 0.
 #[test]
 fn test_get_message_type() {

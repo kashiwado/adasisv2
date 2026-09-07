@@ -7,7 +7,7 @@
 //! META_DATA, along with their interpreted subtypes for profile messages.
 //!
 //! The library works with `[u8; 8]` payloads (e.g. CAN messages) using a
-//! Big-Endian (Motorola) byte order..
+//! Big-Endian (Motorola) byte order.
 
 mod bitreader; // Bitstream deserialization
 mod bitwriter; // Bitstream serialization
@@ -21,9 +21,9 @@ pub use utils::{decode_curvature, encode_curvature};
 // CONSTANTS
 // ============================================================================
 
-/// Invalid profile value (all 1s in 32-bit).
+/// Invalid profile long payload value (all 1s in 32-bit).
 pub const PROFILE_VALUE_INVALID_32: u32 = 0xFFFFFFFF;
-/// Invalid profile value (all 1s in 10-bit).
+/// Invalid profile short payload value (all 1s in 10-bit).
 pub const PROFILE_VALUE_INVALID_10: u16 = 0x3FF;
 
 // ============================================================================
